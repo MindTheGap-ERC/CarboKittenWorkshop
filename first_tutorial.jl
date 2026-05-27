@@ -15,34 +15,8 @@
 using Markdown
 using InteractiveUtils
 
-# This Pluto notebook uses @bind for interactivity. When running this notebook outside of Pluto, the following 'mock version' of @bind gives bound variables a default value (instead of an error).
-macro bind(def, element)
-    #! format: off
-    return quote
-        local iv = try Base.loaded_modules[Base.PkgId(Base.UUID("6e696c72-6542-2067-7265-42206c756150"), "AbstractPlutoDingetjes")].Bonds.initial_value catch; b -> missing; end
-        local el = $(esc(element))
-        global $(esc(def)) = Core.applicable(Base.get, el) ? Base.get(el) : iv(el)
-        el
-    end
-    #! format: on
-end
-
-# ╔═╡ 73242b88-283a-47a7-8ab5-2e26e4d02b12
-using Revise
-
-# ╔═╡ bcea7127-3c21-4c35-af42-3d2c71464409
+# ╔═╡ e3438435-643d-4a18-abe1-a4cefab65bc2
 using CarboKitten
-
-# ╔═╡ 4f5a5be9-c845-407a-8e21-580b4f92d6e0
-let
-	using Pkg
-	
-	Pkg.status("CarboKitten")
-	@show pathof(CarboKitten)
-
-
-end
-
 
 # ╔═╡ 325e3d04-2ff2-4c27-91bf-265820ac6763
 using CarboKitten.Models: ALCAP
@@ -68,12 +42,6 @@ using GLMakie
 # ╔═╡ 3723832f-344c-4471-acb0-cef7d4e5ca94
 using CarboKitten.Export: data_export, CSV, read_slice
 
-# ╔═╡ 95f15889-4337-44d4-b5b2-cc61525e2d2e
-using CarboKitten.Export: read_column
-
-# ╔═╡ e892bc37-81d3-4b8f-9486-de0d717cd67f
-using CarboKitten.Visualization: stratigraphic_column!
-
 # ╔═╡ 03d95080-35ce-4708-8306-dd5f8dc8c3c0
 using Interpolations
 
@@ -85,15 +53,6 @@ using DataFrames
 
 # ╔═╡ ac9e2e1d-2443-4141-97d6-457c0791b336
 using CarboKitten.Export: read_volume
-
-# ╔═╡ 99d20556-eefb-4597-88a3-0b61bd3cb5c8
-using CarboKitten.Boxes: axes as box_axes
-
-# ╔═╡ e1c9135e-4906-4bd1-ba9a-058f7de7d5ac
-using CarboKitten.Visualization: sediment_profile!
-
-# ╔═╡ 5eb8bf63-de51-4f4f-ba23-53e4a68e5762
-using CarboKitten.Export: age_depth_model, DataColumn
 
 # ╔═╡ 44308ced-efd2-42fd-94ab-baa178352ed9
 begin
@@ -233,18 +192,144 @@ This is a built-in example model with default values of parameters. It uses a si
 
 # ╔═╡ dd4cde67-4329-4135-80d7-1c8950404349
 Markdown.parse("""
-We have now imported the `ALCAP` model, which stands for **A**ctive **L**ayer, **C**ellular **A**utomaton driven **P**roduction. This model uses the CA proposed by $(cite(:burgess2013)), production model by $(cite(:bosscher1992)) and an Active Layer diffusive transport approach (inspired on $(cite(:paola1992)), see $(cite(:church2017)) for a concise overview).
+We have now imported the `ALCAP` model, which stands for **A**ctive **L**ayer, **C**ellular **A**utomaton driven **P**roduction. This model uses the CA proposed by $(cite(:burgess2013)), production model by $(cite(:bosscher1992)) and an Active Layer diffusive transport approach (inspired on $(cite(:paola1992)), see $(cite(:church2017)) for a concise overview). 
 """)
 
 # ╔═╡ 9aafba01-fc4c-4dc1-85b6-9f33a4cfc77a
 md"""
 ## Set the output directory
 
-Please make sure to set the output directory to a convenient place. If you downloaded this notebook to an empty directory, using `"."` would be a good choice. You can also specify your own output folder, but please do not forget to make the output folder by using `mkpath`.
+Please make sure to set the output directory to a convenient place. If you downloaded this notebook to an empty directory, using `"."` would be a good choice. You can also specify your own output folder, but please do not forget to make the output folder by using `mkpath` if you do not have one.
 """
 
 # ╔═╡ b3b271cb-143f-44ba-a593-80b9e6c96392
 OUTPUTDIR = "./data/output"
+
+# ╔═╡ 1bb70994-88ad-484b-aeb5-8872f5669271
+# ╠═╡ disabled = true
+#=╠═╡
+begin 
+    using CarboKitten.Boxes: Periodic
+    using CarboKitten: Production
+    
+    initial_topography_dome(x, y) =
+        min(0.0u"m", - sqrt((x - 7.5u"km")^2 + (y - 7.5u"km")^2) / 100.0 + 20.0u"m")
+
+    function main()
+        res = 100
+        steps = 5000
+        phys_scale = 15.0u"km" / res
+
+        output = Dict(
+            :topography => OutputSpec(write_interval = max(1, div(steps, 50))),
+            :profile    => OutputSpec(slice = (:, div(res, 2)+1)))
+
+        facies(feedback) = [
+            ALCAP.Facies(
+                name="euphotic",
+                activation_range=(4, 10),
+                viability_range=(1, 10),
+                production=Production.EXAMPLE[:euphotic],
+                transport_coefficient=10.0u"m/yr",
+                minimum_production=feedback ? 0.01u"m/Myr" : nothing),
+            ALCAP.Facies(
+                name="oligophotic",
+                production=BenthicProduction(
+                    maximum_growth_rate=200.0u"m/Myr",
+                    extinction_coefficient=0.1u"m^-1",
+                    saturation_intensity=60u"W/m^2"
+                ),
+                transport_coefficient=5.0u"m/yr",
+                minimum_production=feedback ? 5.0u"m/Myr" : nothing),
+            ALCAP.Facies(
+                name="pelagic",
+                active=false,
+                production=PelagicProduction(
+                    maximum_growth_rate=1.0u"1/Myr",
+                    extinction_coefficient=0.1u"m^-1",
+                    saturation_intensity=60u"W/m^2"
+                ),
+                transport_coefficient=20.0u"m/yr"
+            )
+        ]
+
+        box = CarboKitten.Box{Periodic{2}}(grid_size=(res, res),     phys_scale=phys_scale)
+
+        time_param = TimeProperties(Δt=1.0u"Myr"/steps, steps=steps)
+
+        sea_level(t) =
+            10.0u"m" * sin(2π * t / 123456.0u"yr") +
+             5.0u"m" * sin(2π * t /  80456.0u"yr")
+
+        input(feedback) = ALCAP.Input(
+            time = time_param,
+            box = box,
+            facies = facies(feedback),
+            output = output,
+
+            sea_level = sea_level,
+            initial_topography = initial_topography_dome,
+            ca_interval = 10,
+
+            insolation = 400.0u"W/m^2",
+            subsidence_rate = 30.0u"m/Myr",
+            disintegration_rate = 20.0u"m/Myr",
+            lithification_time = 100.0u"yr",
+
+            sediment_buffer_size=50,
+            depositional_resolution=0.5u"m"
+        )
+
+        run_model(Model{ALCAP}, input(false), "$(OUTPUTDIR)/ca-no-feedback.h5")
+        run_model(Model{ALCAP}, input(true), "$(OUTPUTDIR)/ca-feedback.h5")
+    end
+
+    main()
+end
+  ╠═╡ =#
+
+# ╔═╡ c01d8954-d7a6-4a3a-a0b5-07d576628418
+# ╠═╡ disabled = true
+#=╠═╡
+begin 
+    using CarboKitten.Visualization:sediment_profile!, wheeler_diagram!
+    function plot()
+
+        fig = Figure(size=(1000, 800))
+
+        header, topography = read_volume("$(OUTPUTDIR)/ca-no-feedback.h5", :topography)
+        _, profile = read_slice("$(OUTPUTDIR)/ca-no-feedback.h5", :profile)
+
+        ax1 = Axis(fig[1, 1:2])
+        sediment_profile!(ax1, header, profile)
+        ax1.title = "without feedback"
+
+        ax1_wh1 = Axis(fig[3, 1])
+        ax1_wh2 = Axis(fig[3, 2])
+        sa, ft = wheeler_diagram!(ax1_wh1, ax1_wh2, header, profile)
+        Colorbar(fig[2, 1], sa; vertical=false, label="sediment accumulation [m/Myr]")
+        Colorbar(fig[2, 2], ft; vertical=false, ticks=1:3, label="dominant facies")
+
+        header, topography = read_volume("$(OUTPUTDIR)/ca-feedback.h5", :topography)
+        _, profile = read_slice("$(OUTPUTDIR)/ca-feedback.h5", :profile)
+
+        ax2 = Axis(fig[1, 3:4])
+        sediment_profile!(ax2, header, profile)
+        ax2.title = "with feedback"
+
+        ax2_wh1 = Axis(fig[3, 3])
+        ax2_wh2 = Axis(fig[3, 4])
+        sa, ft = wheeler_diagram!(ax2_wh1, ax2_wh2, header, profile)
+
+        Colorbar(fig[2, 3], sa; vertical=false, label="sediment accumulation [m/Myr]")
+        Colorbar(fig[2, 4], ft; vertical=false, ticks=1:3, label="dominant facies")
+
+        fig
+    end
+
+    plot()
+end
+  ╠═╡ =#
 
 # ╔═╡ f14fd9a8-4836-4f5b-b0eb-455a714a72fa
 mkpath(OUTPUTDIR)
@@ -259,7 +344,10 @@ md"""
 md"""The `run_model` command runs a model with default input and writes the output to an HDF5 file."""
 
 # ╔═╡ 74f4674f-dbea-44ad-8d54-9861b35139cd
+# ╠═╡ disabled = true
+#=╠═╡
 example_output = run_model(Model{ALCAP}, ALCAP.Example.INPUT, "$(OUTPUTDIR)/example.h5")
+  ╠═╡ =#
 
 # ╔═╡ 19da029b-8752-4177-8ba4-cc2097adec95
 md"""
@@ -280,7 +368,9 @@ using GLMakie
   ╠═╡ =#
 
 # ╔═╡ e118a117-9a00-4589-906d-c31d2057bcef
+#=╠═╡
 summary_plot(example_output)
+  ╠═╡ =#
 
 # ╔═╡ 56765b03-9d25-49c6-9aec-75e1e32e6a43
 md"""
@@ -306,7 +396,7 @@ md"""
 md"""
 # Creating your own model
 
-In our second example we walk through the entire configuration. We start by defining the shape of our box. Overall, we need to define the grids (simulation box), the time (simulation time), the sea-level curve, the initial topography, the facies and the other to start the simulation.
+In our second example we walk through the entire configuration. We start by defining the shape of our box. Overall, we need to define the **grids (simulation box)**, **the time (simulation time)**, **the sea-level curve**, **the initial topography**, **the facies** and the other to start the simulation.
 
 ## Simulation box
 """
@@ -329,8 +419,14 @@ md"""
 	Try adding a quantity in light years to one in kilometers:
 
 	```julia
-	1.0u"yr" * 3e8u"m/s" + 150.0e6u"km"
+	let
+		a = 1.0u"m"
+		b = 1.0u"mm"
+		c = a/b
+	end
 	```
+
+	Guess what is c?
 
 	Try adding a quantity in meters to one in years:
 
@@ -402,12 +498,14 @@ md"""
 # ╔═╡ 5c90b464-858a-4a5d-a2c7-fda775057ef6
 md"""
 ## Initial topography
-In CarboKitten, the initial topography is a function of both $x$ and $y$ coordinates, giving the initial sea floor height for each point. Here we specify a simple ramp in the $x$ direction.
+In CarboKitten, the initial topography is a function of both $x$ and $y$ coordinates, giving the initial sea floor height for each point. Here we specify a simple ramp in the $x$ direction. You can also define your own initial topography.
 """
 
 # ╔═╡ 68f2dd79-6777-4267-ae67-5167f764b7b9
-function initial_topography(x, y)
-	return -x / 300.0
+begin 
+	function initial_topography(x, y)
+		return -x / 300.0
+	end
 end
 
 # ╔═╡ 2e168646-5b9e-437b-b0b2-d637a4beb577
@@ -493,7 +591,7 @@ end
 
 # ╔═╡ 43405e49-2739-4e79-8204-e489db6c1fd5
 md"""
-## Other parameters
+## Overall input files and other parameters
 
 The subsidence rate is set to a constant 50 m/Myr and insolation to 400 $W/m^2$. The other parameters are related to the transport model.
 """
@@ -569,105 +667,34 @@ md"""
 	The `:metadata` target is special, since it doesn't write to CSV but to TOML. Add the `:stratigraphic_column` and `:metadata` targets to the export a list and inspect the result.
 """
 
-# ╔═╡ adf67033-5941-4be6-bb17-c0958348b905
-md"""
-## Plot age-depth models
-"""
-
 # ╔═╡ e26defa5-10ff-4275-bae9-768f7fb8d9ba
 md"""
-We can plot the age-depth model either from CSV or the HDF5 file. Herein, we will use HDF5 file, and again use Makie to visualise the data.
+You can use the exported CSV file to plot stratigraphic column, age-depth-model, etc.
 """
 
-# ╔═╡ add6a25b-d948-4cd0-9412-56752793ca4b
+# ╔═╡ 874d436b-78d4-42dc-941f-30b0063a87a6
 md"""
-Plot the Age-Depth Model:
+!!! tip "It's now time to get your hands dirty!" 
+	You are now reaching the intermediate-level of using the model! Congratulations! Let's try to change sea-level curve (or even your own sea-level curve) to make your own model!
 """
-
-# ╔═╡ f550da45-1202-4f9d-9f0b-b96d5c929f58
-let
-	function plot_adm(header, profile, location::Int)
-		time_interval = header.Δt
-		time = header.axes.t[1]:time_interval:header.axes.t[end] |> collect
-		time = time ./ 1.0u"Myr"
-		sac = profile.sediment_thickness[location, :]
-
-		adm = sac |> reverse |> accumulate(min) |> reverse
-		adm = adm ./ 1.0u"m"
-		fig = Figure()
-		ax = Axis(fig[1, 1]; title = "ADM at Location $(location)", xlabel = "Time (Myr)", ylabel = "Thickness (m)")
-		lines!(ax, time, adm; color = :black)
-		fig
-	end
-	
-	header, profile = read_slice(tutorial_output, :profile)
-	LOCATION = 20
-	plot_adm(header, profile, LOCATION)
-end
-
-# ╔═╡ 64c3ce44-de95-4f7b-954d-52f743fc5033
-md"""
-## Plot the stratigraphic column
-"""
-
-# ╔═╡ 0a5da056-ca6a-4d90-b2a4-fb84ae5b7da2
-let
-	function plot_strat_column(header, profile, location::Int)
-	    fig = Figure()
-	    ax = Axis(fig[1,1], title="Stratigraphic column", ylabel="thickness (m)")
-	    stratigraphic_column!(ax, header, profile[location]; color=Makie.wong_colors())
-	    fig
-	end
-	
-	header, profile = read_slice(tutorial_output, :profile)
-	LOCATION = 20
-	data = profile[LOCATION]
-	ax = Axis(Figure()[1, 1])
-    m = @which stratigraphic_column!(ax, header, data)
-    SC = m.module
-
-    @show m
-    @show SC
-    @show @which SC.scdata(header, data)
-    @show @which SC.stratigraphic_column(header, data, 1)
-
-    @code_lowered SC.scdata(header, data)
-	@less SC.scdata(header, data)
-	@less SC.stratigraphic_column(header, data, 1)
-	plot_strat_column(header, profile, LOCATION)
-end
-
-# ╔═╡ 57ebc90d-7cd5-4bc9-9c33-027c16f4fd4f
-let
-header, profile = read_slice(tutorial_output, :profile)
-	LOCATION = 20
-data = profile[LOCATION]
-ax = Axis(Figure()[1, 1])
-
-m = @which stratigraphic_column!(ax, header, data)
-
-@show m
-@show m.module
-@show m.file
-@show m.line
-
-mod = m.module
-
-filter(name -> occursin("scdata", String(name)), names(mod; all=true))
-end
-
 
 # ╔═╡ d7a4eb34-6b9e-4779-900d-493a853a6199
 md"""
-# Orbital cycle modulated sea level
+# Build your own model based on a sea-level curve
 
-You may need to import an external source, for example, a `txt`, excel, or a `csv` file. Here we have prepared a `txt` file, meaning there are no clear rules about how the file is read or whether it contains meta-data. We'll have to inspect the file to find a column delimiter. We can then use the `DelimitedFiles` package to read the data.
+You may need to import an external source, for example, a `txt`, excel, or a `csv` file. Here we choose a `txt` file as an example, meaning there are no clear rules about how the file is read or whether it contains meta-data. We'll have to inspect the file to find a column delimiter. We can then use the `DelimitedFiles` package to read the data. We also use package interpolation and DataFrames to interpolate data and convert the data into a 'table'.
 
-If you did not prepare your sea-level curve, we provide one and you could download it from the email. You could download it to your own computer, and replace `SL_PATH` with the real path where you stored the text file. It is recommended to store the notebook and your sealevel curve at the same directory.
+If you did not prepare your sea-level curve, we provide one and you can find it from the email. You could download it to your own computer, and replace `SL_PATH` with the real path where you stored the text file. It is recommended to store the notebook and your sealevel curve at the same directory.
 """
 
 # ╔═╡ 7f6c8d9e-db15-48fc-a631-662d56f87197
 SL_PATH = "data/input/sl.txt"
+
+# ╔═╡ aa9d0747-af24-4278-8886-6cdf6cdab804
+md"""
+## extract sea-level curve from txt file
+The following function `obtain_sl` is to extract and interpolate the sea-level curve from the txt file. Don't worry about the julia syntax for now, you can just use the written functions.
+"""
 
 # ╔═╡ 41e84b67-f5f6-4b24-943d-b0bfe50ca2bb
 begin
@@ -679,6 +706,11 @@ begin
 		return linear_interpolation(time_ob,sea_level_ob)
 	end
 end
+
+# ╔═╡ c24cbc17-8647-4cfc-8836-b34960d12610
+md"""
+Note that in the following input file, we now assign the `sea_level` with the written function `obtain_sl`. 
+"""
 
 # ╔═╡ 5043ab85-a7ff-4283-9d71-071c470f4d6e
 input_ob = ALCAP.Input(
@@ -694,6 +726,7 @@ input_ob = ALCAP.Input(
     insolation=400.0u"W/m^2",
     sediment_buffer_size=50,
     depositional_resolution=0.5u"m",
+    lithification_time = 100.0u"yr",
     facies=FACIES)
 
 # ╔═╡ bd208d68-f565-4d05-89f7-f2e572a87f04
@@ -737,9 +770,6 @@ end
 # ╔═╡ 897eb3d9-5f01-4b9d-8e3d-7cabc0e7d900
 inso_curve = obtain_inso(INSO_PATH)
 
-# ╔═╡ a4f23e65-8d61-4c63-8ade-18c10182cb5c
-inso_curve(0.0004)
-
 # ╔═╡ 79a5fb35-fb71-4ae9-8559-9c049f32ee75
 input_inso = ALCAP.Input(
     box=Box{Coast}(grid_size=(100, 50), phys_scale=150.0u"m"),
@@ -762,176 +792,51 @@ own_inso_output = run_model(Model{ALCAP}, input_inso, "$(OUTPUTDIR)/tutorial_ins
 # ╔═╡ 9f7561ac-e784-41c5-bfa6-da763a2f8579
 summary_plot(own_inso_output)
 
-# ╔═╡ 03fb241a-a332-49c5-9549-cd9742ad66bf
+# ╔═╡ ca1d30f7-f67e-4286-911b-b3ce1a4e2407
 md"""
-If you want to use an insolation curve directly derived from astronomical solutions, we provide another way to do it, by incoporating R package `palinsol`. If you would like to try this, please install R first, and make sure you know the path of your R. We gave an example of how to use R in Julia as follows.
+!!! tip "Congrats!"
+	You have build your first model! Now you can also change the sea-level curve and insolcation curve as you wish.
 """
-
-# ╔═╡ e56a4012-d80a-4535-a575-ad80c9d28610
-# ╠═╡ disabled = true
-#=╠═╡
-begin
-ENV["R_HOME"] = raw"C:/Users/Liu00141/AppData/Local/Programs/R/R-4.4.1"
-Pkg.build("RCall")
-end
-  ╠═╡ =#
-
-# ╔═╡ c0fea2f2-234a-4fe1-9619-d506f4c40ded
-# ╠═╡ disabled = true
-#=╠═╡
-using RCall
-  ╠═╡ =#
-
-# ╔═╡ eb3908ca-2d33-437d-9a19-a65efa20da3e
-# ╠═╡ disabled = true
-#=╠═╡
-R"""
-if (!require("palinsol")) {
-    install.packages("palinsol", repos = "https://cran.r-project.org")
-}
-"""
-  ╠═╡ =#
-
-# ╔═╡ b1fee3c8-bd01-4f07-b2ed-18730999967f
-# ╠═╡ disabled = true
-#=╠═╡
-R"""
-library(palinsol)
-time_start <- 8e5  
-time_end <- 0      
-time_step <- 2e2  
-times <- seq(time_end, time_start, time_step)
-
-param_la04 = t(sapply(times, function(t) astro(t, solution = la04, degree = TRUE)))
-
-orbit <- list()
-insolation <- list()
-lat_degree = 25
-
-for (t in 1:length(times)) {
-  orbit[[t]] <- list(
-    eps = param_la04[t,1] * pi / 180, 
-    ecc = param_la04[t,2], 
-    varpi = (param_la04[t,3] - 180) * pi / 180
-  )
-  
-  insolation[[t]] <- Insol(
-    orbit[[t]], 
-    long = pi / 2, 
-    lat = lat_degree * pi / 180, 
-    S0 = 1365, 
-    H = NULL
-  )
-}
-
-insolation = inso_values <- unlist(insolation)
-
-"""
-
-  ╠═╡ =#
-
-# ╔═╡ 9ad42bc3-0f74-48fa-8668-1d7a9555d992
-# ╠═╡ disabled = true
-#=╠═╡
-begin
-	@rget times    
-	@rget insolation
-	function get_inso_r()
-		interpolated_inso = linear_interpolation(times,insolation)
-	end
-end
-  ╠═╡ =#
-
-# ╔═╡ af878041-b78b-4e62-8aed-826506935f89
-# ╠═╡ disabled = true
-#=╠═╡
-input_inso = ALCAP.Input(
-    tag="tutorial",
-    box=Box{Coast}(grid_size=(100, 50), phys_scale=150.0u"m"),
-    time=TimeProperties(
-        Δt=0.0002u"Myr",
-        steps=3900),
-    ca_interval=1,
-    initial_topography=(x, y) -> -x / 300.0,
-    sea_level= Interpolated_SL,
-    subsidence_rate=50.0u"m/Myr",
-    disintegration_rate=50.0u"m/Myr",
-    insolation= get_inso_r() * 1.0u"W/m^2",
-    sediment_buffer_size=50,
-    depositional_resolution=0.5u"m",
-    facies=FACIES)
-  ╠═╡ =#
-
-# ╔═╡ 459feada-ad61-4939-b733-30aa007bb026
-# ╠═╡ disabled = true
-#=╠═╡
-own_inso_output = run_model(Model{ALCAP}, input_inso, "$(OUTPUTDIR)/tutorial_ownsinso.h5")
-  ╠═╡ =#
-
-# ╔═╡ 7c100b7f-7661-4250-b999-fdd3f32bf80b
-# ╠═╡ disabled = true
-#=╠═╡
-data_export(CSV(export_locations,
-	:sediment_accumulation_curve => "$(OUTPUTDIR)/tutorial_owninso_sac.csv",
-	:age_depth_model => "$(OUTPUTDIR)/tutorial_owninso_adm.csv"),
-	own_inso_output)
-  ╠═╡ =#
-
-# ╔═╡ 04a28420-a758-4597-a679-b675844d9c7e
-md"""
-# Interactive Exploration
-"""
-
-# ╔═╡ cfb15723-694b-4dc1-bd37-21d17074ab98
-md"""
-In Pluto we can create interactive visualizations. Sliding `y` will cause a reload of the data slices, which can be a bit slow.
-
-!!! tip "Macros"
-	In Julia, the `@` character indicates the use of a macro. It's Ok not to understand: macro is a different word for magic smoke screen.
-
-	If you'd like to learn more about interactivity in notebooks, check out the [`PlutoUI` demo notebook](https://featured.plutojl.org/basic/plutoui.jl).
-"""
-
-# ╔═╡ 8e0bdea3-77a7-452f-a3ca-b2a0b5bbf5f0
-md"""
-We load the data using the `read_slice` function from `CarboKitten.Export`. This extracts a slice along the $x$-axis (onshore-offshore profile).
-"""
-
-# ╔═╡ 1fc8dffe-8e56-4da9-a7e0-07793d1d0455
-@bind x PlutoUI.Slider(1:100, default=25)
-
-# ╔═╡ 8dfe7d41-2915-48b7-9866-b36ae7fe6443
-x
-
-# ╔═╡ fbf6306d-de6c-4581-9f19-4ac066162709
-md"""
-Within this slice we can select a single stratigraphic column by setting the $x$ coordinate."""
-
-# ╔═╡ 5ca6c8ed-cfd1-478d-a9fe-67fb4ff2ef0f
-let
-	fig = Figure()
-	y = 25
-	(xaxis, yaxis) = box_axes(input.box)
-	xpos = uconvert(u"km", xaxis[x])
-	ypos = uconvert(u"km", yaxis[y])
-	ax = Axis(fig[1, 1], title="age depth model @ (x = $(xpos) offshore, y = $(ypos))", ylabel="height [m]", xlabel="time [Myr]")
-	column = profile[x]
-	adm = age_depth_model(column.sediment_thickness) |> in_units_of(u"m")
-	lines!(ax, header.axes.t |> in_units_of(u"Myr"), adm)
-
-	ax2 = Axis(fig[1, 2], title="strat. col.", width=70, xtickformat="", xticksvisible=false)
-	stratigraphic_column!(ax2, header, column)
-	fig
-end
 
 # ╔═╡ c85294f2-3508-48c0-b67d-d82df646ae33
 Markdown.parse("""
-# Task: Platform Morphology
+# Advanced-level task: Platform Morphology
 
-Researchers have found different morphologies of carbonate platforms. For example, some of them show a 'steep cliff' (rimmed-shelf) while some others show a 'smooth' ramp. See for instance $(cite(:pomar2001)).
+Researchers have found different morphologies of carbonate platforms. For example, some of them show a flat-top with a steep cliff while some others show a 'smooth' ramp. See for instance $(cite(:pomar2001)).
 
 Different carbonate producers (i.e., T, M, C) produce carbonate with different production rate under different water-depth. Could the production rate be a key controller for the morphology of the carbonate platform? That is to say, can you vary the parameters as illustrated in section on Facies Definitions to try to produce two carbonate platforms, one with 'rimmed-shelf' and another one with ramp'?
+
+Except production curve, any other factors influencing the morphology? For example, the transport coefficient?
+
+Have a try and see what are the controlling factors for the platform morphology (given a same sea-level curve)!
 """)
+
+# ╔═╡ 8c9c5d8c-1fbf-49d2-b2da-a008ad5959fa
+md"""
+!!! tip "Cheat sheet"
+	The major differences between a 'ramp' and a 'platform' is: the thickness of carbonate sediment in ramp is relatively even across the cross-section. Think about changing which parameters could result in a more even thickness?
+"""
+
+# ╔═╡ 68da4b08-768b-43aa-a293-97363a9469de
+md"""
+# More advanced-level task: How cellular Automata feedback would influence the morphology
+
+Except the basic functions we had described above, CarboKitten is also able to include the following features: 
+- CA feedback
+- Onshore transport
+- Subaerial  denudation
+
+## Outline of the task
+
+CA feedback means to kill the facies when its producation is below a certain threshold. 
+
+Herein, we will introduce CA feedback feature and see how this would influence the architecture of the carbonate platform.
+"""
+
+# ╔═╡ f0b0298e-5ee2-43fe-8a34-5e146d3577bb
+md"""
+	Can you spt out the differences? 
+"""
 
 # ╔═╡ 754f7cf0-f3a7-4cff-b20e-ed16874860c7
 md"""
@@ -946,9 +851,7 @@ DataFrames = "a93c6f00-e57d-5684-b7b6-d8193f3e46c0"
 DelimitedFiles = "8bb1440f-4735-579b-a4ab-409b98df4dab"
 GLMakie = "e9467ef8-e4e7-5192-8a1a-b1aee30e663a"
 Interpolations = "a98d9a8b-a2ab-59e6-89dd-64a1c18fca59"
-Pkg = "44cfe95a-1eb2-52ea-b672-e2afdf69b78f"
 PlutoUI = "7f904dfe-b85e-4ff6-b463-dae2292396a8"
-Revise = "295af30f-e4ad-537b-8983-00126c2a3abe"
 ShortCodes = "f62ebe17-55c5-4640-972f-b59c0dd11ccf"
 Unitful = "1986cc42-f94f-5a68-af5c-568840ba703d"
 
@@ -958,7 +861,6 @@ DataFrames = "~1.8.2"
 GLMakie = "~0.13.10"
 Interpolations = "~0.16.2"
 PlutoUI = "~0.7.80"
-Revise = "~3.14.1"
 ShortCodes = "~0.4.2"
 Unitful = "~1.28.0"
 """
@@ -969,7 +871,7 @@ PLUTO_MANIFEST_TOML_CONTENTS = """
 
 julia_version = "1.12.6"
 manifest_format = "2.0"
-project_hash = "4812512668b13939eb2431d06cdaad4d15715c58"
+project_hash = "8ca51d8544baf6493d1184ee87d05ec719714f0b"
 
 [[deps.AbstractFFTs]]
 deps = ["LinearAlgebra"]
@@ -1137,12 +1039,6 @@ weakdeps = ["SparseArrays"]
     [deps.ChainRulesCore.extensions]
     ChainRulesCoreSparseArraysExt = "SparseArrays"
 
-[[deps.CodeTracking]]
-deps = ["InteractiveUtils", "REPL", "UUIDs"]
-git-tree-sha1 = "cfb7a2e89e245a9d5016b70323db412b3a7438d5"
-uuid = "da1fd8a2-8d9e-5ec2-8556-3022fb5608a2"
-version = "3.0.2"
-
 [[deps.CodecZlib]]
 deps = ["TranscodingStreams", "Zlib_jll"]
 git-tree-sha1 = "962834c22b66e32aa10f7611c08c8ca4e20749a9"
@@ -1202,11 +1098,6 @@ weakdeps = ["Dates", "LinearAlgebra"]
 
     [deps.Compat.extensions]
     CompatLinearAlgebraExt = "LinearAlgebra"
-
-[[deps.Compiler]]
-git-tree-sha1 = "382d79bfe72a406294faca39ef0c3cef6e6ce1f1"
-uuid = "807dbc54-b67e-4c79-8afb-eafe4df6f2e1"
-version = "0.1.1"
 
 [[deps.CompilerSupportLibraries_jll]]
 deps = ["Artifacts", "Libdl"]
@@ -1785,12 +1676,6 @@ git-tree-sha1 = "c0c9b76f3520863909825cbecdef58cd63de705a"
 uuid = "aacddb02-875f-59d6-b918-886e6ef4fbf8"
 version = "3.1.5+0"
 
-[[deps.JuliaInterpreter]]
-deps = ["CodeTracking", "InteractiveUtils", "Random", "UUIDs"]
-git-tree-sha1 = "58927c485919bf17ea308d9d82156de1adf4b006"
-uuid = "aa1ae85d-cabe-5617-a682-6adf51b2e16a"
-version = "0.10.12"
-
 [[deps.JuliaSyntaxHighlighting]]
 deps = ["StyledStrings"]
 uuid = "ac6e5ff7-fb65-4e79-a425-ec3bc9c03011"
@@ -1936,12 +1821,6 @@ deps = ["Dates", "Logging"]
 git-tree-sha1 = "f00544d95982ea270145636c181ceda21c4e2575"
 uuid = "e6f89c97-d47a-5376-807f-9c37f3926c36"
 version = "1.2.0"
-
-[[deps.LoweredCodeUtils]]
-deps = ["CodeTracking", "Compiler", "JuliaInterpreter"]
-git-tree-sha1 = "5d4278f755440f70648d80cc6225f51e78e94094"
-uuid = "6f1432cf-f94c-5a45-995e-cdbf5db27b0b"
-version = "3.5.1"
 
 [[deps.MIMEs]]
 git-tree-sha1 = "c64d943587f7187e751162b3b84445bbbd79f691"
@@ -2346,16 +2225,6 @@ deps = ["UUIDs"]
 git-tree-sha1 = "62389eeff14780bfe55195b7204c0d8738436d64"
 uuid = "ae029012-a4dd-5104-9daa-d747884805df"
 version = "1.3.1"
-
-[[deps.Revise]]
-deps = ["CodeTracking", "FileWatching", "InteractiveUtils", "JuliaInterpreter", "LibGit2", "LoweredCodeUtils", "OrderedCollections", "Preferences", "REPL", "UUIDs"]
-git-tree-sha1 = "a44fc6ab46efc588f122ee71d6e2ca83b8645ff7"
-uuid = "295af30f-e4ad-537b-8983-00126c2a3abe"
-version = "3.14.1"
-weakdeps = ["Distributed"]
-
-    [deps.Revise.extensions]
-    DistributedExt = "Distributed"
 
 [[deps.Rmath]]
 deps = ["Random", "Rmath_jll"]
@@ -3025,14 +2894,13 @@ version = "1.13.0+0"
 # ╟─22ec7e16-b8c0-414d-9700-52bf379e1051
 # ╟─d573309f-c99a-43e9-a89f-083ef4ade5d8
 # ╟─3b7fef8b-efb9-467d-b6db-f7cfa132be69
-# ╠═bcea7127-3c21-4c35-af42-3d2c71464409
-# ╠═4f5a5be9-c845-407a-8e21-580b4f92d6e0
+# ╠═e3438435-643d-4a18-abe1-a4cefab65bc2
 # ╟─cf61bc3f-a20a-45b7-a885-22b70075fc42
 # ╟─68fac1d8-f402-429e-90a4-25fcfa188c2e
 # ╟─002cb6d7-ee29-408f-a289-36ab913c7f85
 # ╟─545a6a8d-70d5-470a-a615-4305efa0ecd1
 # ╠═325e3d04-2ff2-4c27-91bf-265820ac6763
-# ╟─dd4cde67-4329-4135-80d7-1c8950404349
+# ╠═dd4cde67-4329-4135-80d7-1c8950404349
 # ╟─9aafba01-fc4c-4dc1-85b6-9f33a4cfc77a
 # ╠═b3b271cb-143f-44ba-a593-80b9e6c96392
 # ╠═f14fd9a8-4836-4f5b-b0eb-455a714a72fa
@@ -3080,22 +2948,16 @@ version = "1.13.0+0"
 # ╠═3a2d1fae-53a8-431c-bf7a-b0ad2d594911
 # ╠═7f05b817-f933-4280-b2ed-ae318a535123
 # ╟─2a24237e-5c1f-47e1-8f33-cca3ef563930
-# ╟─adf67033-5941-4be6-bb17-c0958348b905
 # ╟─e26defa5-10ff-4275-bae9-768f7fb8d9ba
-# ╟─add6a25b-d948-4cd0-9412-56752793ca4b
-# ╠═95f15889-4337-44d4-b5b2-cc61525e2d2e
-# ╠═f550da45-1202-4f9d-9f0b-b96d5c929f58
-# ╟─64c3ce44-de95-4f7b-954d-52f743fc5033
-# ╠═e892bc37-81d3-4b8f-9486-de0d717cd67f
-# ╠═73242b88-283a-47a7-8ab5-2e26e4d02b12
-# ╠═0a5da056-ca6a-4d90-b2a4-fb84ae5b7da2
-# ╠═57ebc90d-7cd5-4bc9-9c33-027c16f4fd4f
+# ╟─874d436b-78d4-42dc-941f-30b0063a87a6
 # ╟─d7a4eb34-6b9e-4779-900d-493a853a6199
 # ╠═03d95080-35ce-4708-8306-dd5f8dc8c3c0
 # ╠═9a044d3d-fb41-4ffe-a3ad-5acd94aa6ac6
 # ╠═92cfd411-6c15-4003-bfb9-de242351372c
 # ╠═7f6c8d9e-db15-48fc-a631-662d56f87197
+# ╟─aa9d0747-af24-4278-8886-6cdf6cdab804
 # ╠═41e84b67-f5f6-4b24-943d-b0bfe50ca2bb
+# ╟─c24cbc17-8647-4cfc-8836-b34960d12610
 # ╠═5043ab85-a7ff-4283-9d71-071c470f4d6e
 # ╠═bd208d68-f565-4d05-89f7-f2e572a87f04
 # ╠═1c9b261a-3486-43ed-9416-3c89a9fd76e5
@@ -3104,30 +2966,16 @@ version = "1.13.0+0"
 # ╟─bcd404d1-d2a8-4b8c-8fe8-16abb9215442
 # ╠═85c4af97-3cbc-4a86-8a15-80997898cc09
 # ╠═897eb3d9-5f01-4b9d-8e3d-7cabc0e7d900
-# ╠═a4f23e65-8d61-4c63-8ade-18c10182cb5c
 # ╠═79a5fb35-fb71-4ae9-8559-9c049f32ee75
 # ╠═b727b5c9-538d-4e14-9edb-e2e4cbf749a0
 # ╠═9f7561ac-e784-41c5-bfa6-da763a2f8579
-# ╠═03fb241a-a332-49c5-9549-cd9742ad66bf
-# ╠═e56a4012-d80a-4535-a575-ad80c9d28610
-# ╠═c0fea2f2-234a-4fe1-9619-d506f4c40ded
-# ╠═eb3908ca-2d33-437d-9a19-a65efa20da3e
-# ╠═b1fee3c8-bd01-4f07-b2ed-18730999967f
-# ╠═9ad42bc3-0f74-48fa-8668-1d7a9555d992
-# ╠═af878041-b78b-4e62-8aed-826506935f89
-# ╠═459feada-ad61-4939-b733-30aa007bb026
-# ╠═7c100b7f-7661-4250-b999-fdd3f32bf80b
-# ╟─04a28420-a758-4597-a679-b675844d9c7e
-# ╠═99d20556-eefb-4597-88a3-0b61bd3cb5c8
-# ╠═e1c9135e-4906-4bd1-ba9a-058f7de7d5ac
-# ╠═5eb8bf63-de51-4f4f-ba23-53e4a68e5762
-# ╟─cfb15723-694b-4dc1-bd37-21d17074ab98
-# ╟─8e0bdea3-77a7-452f-a3ca-b2a0b5bbf5f0
-# ╠═1fc8dffe-8e56-4da9-a7e0-07793d1d0455
-# ╠═8dfe7d41-2915-48b7-9866-b36ae7fe6443
-# ╟─fbf6306d-de6c-4581-9f19-4ac066162709
-# ╟─5ca6c8ed-cfd1-478d-a9fe-67fb4ff2ef0f
-# ╠═c85294f2-3508-48c0-b67d-d82df646ae33
+# ╟─ca1d30f7-f67e-4286-911b-b3ce1a4e2407
+# ╟─c85294f2-3508-48c0-b67d-d82df646ae33
+# ╟─8c9c5d8c-1fbf-49d2-b2da-a008ad5959fa
+# ╟─68da4b08-768b-43aa-a293-97363a9469de
+# ╟─1bb70994-88ad-484b-aeb5-8872f5669271
+# ╟─c01d8954-d7a6-4a3a-a0b5-07d576628418
+# ╟─f0b0298e-5ee2-43fe-8a34-5e146d3577bb
 # ╟─754f7cf0-f3a7-4cff-b20e-ed16874860c7
 # ╟─44308ced-efd2-42fd-94ab-baa178352ed9
 # ╟─ebcb24b3-1ea3-49a8-a6d8-bf1f2cee657e
