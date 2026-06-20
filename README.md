@@ -1,14 +1,21 @@
-# Template for repositories in MindTheGap
-Template for future repositories created as part of the project
+# Instructions
 
 ## Purpose
+This instruction provides basic information about how to use the notebook.
 
-What is this code doing or supposed to do
+## Installation and running instructions
+- Before loading the notebook, please make sure you have installed julia (version = 1.12).
 
-### Installation and running instructions
+- Download the whole folder to the place you know. Note that, in some cases, the folder only has 'read-only' permission, and this would not allow the normal functioning of the notebook.
 
-### Repository structure
-*Folder structure goes here
+- Open the folder, find the notebook: first_tutorial.jl, and cope the path.
+
+- Open Julia, and launch Pluto, by running 'using Pluto', followed by 'Pluto.run()'. A window will pop-up. You can paste the copied path in and open the notebook.
+
+- Click 'run the notebook' tab at the top-left corner.
+
+## More information
+We included an off-line webpage in the folder. This webpage contains the details of the structure of the model.
 
 ## Authors
 *Here in alphabetical order. For the final repo, keep the relevant authors, change the order and (optionally) indicate roles as needed*
