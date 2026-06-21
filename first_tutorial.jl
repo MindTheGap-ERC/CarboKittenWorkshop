@@ -93,89 +93,28 @@ begin
 	TableOfContents()
 end
 
+# ╔═╡ 1f88106c-eea2-4473-858a-be19f70fab4c
+md"""
+# CarboKitten Workshop - Strati 2026
+
+*Xianyi Liu, Emilia Jarochowska and Johan Hidding, with contributions by Niklas Hohmann*
+"""
+
 # ╔═╡ 0ce8de55-3304-431d-a2aa-110b46a25c9b
 md"""
-This CarboKitten tutorial is aimed at people that are completely new to Julia. Please follow the button on the top-right to download this notebook, and put it in an new directory.
-"""
+This CarboKitten tutorial is aimed at people that are completely new to Julia. It is distributed offline and it assumes you have already installed Julia on your computer and you are running this notebook from your own computer.
 
-# ╔═╡ 9babc2b0-9c26-11ef-3459-0d113ec3c402
-md"""
-# Installing
-
-Please install Julia from the following webpage: [https://julialang.org/downloads/](https://julialang.org/downloads/).
-
-We will use [Pluto](https://plutojl.org/) to do our tutorial. This is a notebook interface (similar to Jupyter) that is easy to use and has a strong focus on reproducibility.
-
-Start the Julia REPL (read-eval-print loop), either from the start menu (on Windows), the Launchpad (on Mac), or in a terminal, by typing `julia` and pressing Enter. You should see a colorful welcome message and a prompt for input:
-"""
-
-# ╔═╡ 17722d8b-baca-4f16-981f-1501c734a95f
-md"""
-```
-               _
-   _       _ _(_)_     |  Documentation: https://docs.julialang.org
-  (_)     | (_) (_)    |
-   _ _   _| |_  __ _   |  Type "?" for help, "]?" for Pkg help.
-  | | | | | | |/ _` |  |
-  | | |_| | | | (_| |  |  Version 1.12.6 (2026-04-09)
- _/ |\__'_|_|_|\__'_|  |  Official https://julialang.org release
-|__/                   |
-
-julia> 
-```
-"""
-
-# ╔═╡ 22ec7e16-b8c0-414d-9700-52bf379e1051
-md"""
-You can install Pluto by typing `using Pluto`, pressing Enter and then answering `y` to the prompted question.
-
-```juliarepl
-julia> using Pluto
- │ Package Pluto not found, but a package named Pluto is available from a
- │ registry. 
- │ Install package?
- │   (@v1.12) pkg> add Pluto 
- └ (y/n/o) [y]: 
-```
-
-Please type `Pluto.run()` and press Enter to start the Pluto Notebook as follows:
-
-```
-┌ Info: 
-│   Welcome to Pluto v0.20.25 🎈
-│   Start a notebook server using:
-│ 
-│ julia> Pluto.run()
-│ 
-│   Have a look at the FAQ:
-│   https://github.com/fonsp/Pluto.jl/wiki
-└ 
-```
-
-After a while you should see a pop-up window.
-
-
-Navigate to the address of the notebook you have downloaded and open it. 
-"""
-
-# ╔═╡ d573309f-c99a-43e9-a89f-083ef4ade5d8
-md"""
-!!! danger "☕ Coffee time! ☕"
-
-	When you open the notebook and click "Run notebook code" at the top-right corner, Pluto will download and compile all the needed packages. Depending on your machine this may take 5-10 minutes. We would love to hear your feedback: please share it via [this form](https://forms.office.com/e/8RnBXqxq2D).
-"""
-
-# ╔═╡ 3b7fef8b-efb9-467d-b6db-f7cfa132be69
-md"""
-## Install CarboKitten
-
-In a Pluto notebook, Julia packages are installed by `using` them. For example, we enter `using CarboKitten` here to install CarboKitten.jl.
+If this is not the case, please scroll down to the end of this document for instructions how to run this notebook.
 """
 
 # ╔═╡ cf61bc3f-a20a-45b7-a885-22b70075fc42
 md"""
-All packages used and their versions are stored inside the notebooks. When you run the notebook on a different computer, the same packages will be used.
+All packages used and their versions are stored inside a [Pluto notebook](https://plutojl.org/). When you run the notebook on a different computer, the same packages will be used. In the bottom right corner of the browser, you see the button "Status", which shows loading the packages. If your internet connection is slow, the loading may take a while - this is where you can monitor the progress of package installation.
 """
+
+# ╔═╡ abfc6cb1-8df2-4c0e-bd4d-745370c6581d
+md"""
+In a Pluto notebook, all cells are run automatically when the notebook is opened. The exception are disabled cells, which you first need to enable - you will see an example below. If you want to modify the code and run it again, after making the changes press the small arrow in the bottom right corner of the cell. """
 
 # ╔═╡ 68fac1d8-f402-429e-90a4-25fcfa188c2e
 md"# Running an existing model"
@@ -205,132 +144,6 @@ Please make sure to set the output directory to a convenient place. If you downl
 # ╔═╡ b3b271cb-143f-44ba-a593-80b9e6c96392
 OUTPUTDIR = "./data/output"
 
-# ╔═╡ 1bb70994-88ad-484b-aeb5-8872f5669271
-# ╠═╡ disabled = true
-#=╠═╡
-begin 
-    using CarboKitten.Boxes: Periodic
-    using CarboKitten: Production
-    
-    initial_topography_dome(x, y) =
-        min(0.0u"m", - sqrt((x - 7.5u"km")^2 + (y - 7.5u"km")^2) / 100.0 + 20.0u"m")
-
-    function main()
-        res = 100
-        steps = 5000
-        phys_scale = 15.0u"km" / res
-
-        output = Dict(
-            :topography => OutputSpec(write_interval = max(1, div(steps, 50))),
-            :profile    => OutputSpec(slice = (:, div(res, 2)+1)))
-
-        facies(feedback) = [
-            ALCAP.Facies(
-                name="euphotic",
-                activation_range=(4, 10),
-                viability_range=(1, 10),
-                production=Production.EXAMPLE[:euphotic],
-                transport_coefficient=10.0u"m/yr",
-                minimum_production=feedback ? 0.01u"m/Myr" : nothing),
-            ALCAP.Facies(
-                name="oligophotic",
-                production=BenthicProduction(
-                    maximum_growth_rate=200.0u"m/Myr",
-                    extinction_coefficient=0.1u"m^-1",
-                    saturation_intensity=60u"W/m^2"
-                ),
-                transport_coefficient=5.0u"m/yr",
-                minimum_production=feedback ? 5.0u"m/Myr" : nothing),
-            ALCAP.Facies(
-                name="pelagic",
-                active=false,
-                production=PelagicProduction(
-                    maximum_growth_rate=1.0u"1/Myr",
-                    extinction_coefficient=0.1u"m^-1",
-                    saturation_intensity=60u"W/m^2"
-                ),
-                transport_coefficient=20.0u"m/yr"
-            )
-        ]
-
-        box = CarboKitten.Box{Periodic{2}}(grid_size=(res, res),     phys_scale=phys_scale)
-
-        time_param = TimeProperties(Δt=1.0u"Myr"/steps, steps=steps)
-
-        sea_level(t) =
-            10.0u"m" * sin(2π * t / 123456.0u"yr") +
-             5.0u"m" * sin(2π * t /  80456.0u"yr")
-
-        input(feedback) = ALCAP.Input(
-            time = time_param,
-            box = box,
-            facies = facies(feedback),
-            output = output,
-
-            sea_level = sea_level,
-            initial_topography = initial_topography_dome,
-            ca_interval = 10,
-
-            insolation = 400.0u"W/m^2",
-            subsidence_rate = 30.0u"m/Myr",
-            disintegration_rate = 20.0u"m/Myr",
-            lithification_time = 100.0u"yr",
-
-            sediment_buffer_size=50,
-            depositional_resolution=0.5u"m"
-        )
-
-        run_model(Model{ALCAP}, input(false), "$(OUTPUTDIR)/ca-no-feedback.h5")
-        run_model(Model{ALCAP}, input(true), "$(OUTPUTDIR)/ca-feedback.h5")
-    end
-
-    main()
-end
-  ╠═╡ =#
-
-# ╔═╡ c01d8954-d7a6-4a3a-a0b5-07d576628418
-# ╠═╡ disabled = true
-#=╠═╡
-begin 
-    using CarboKitten.Visualization:sediment_profile!, wheeler_diagram!
-    function plot()
-
-        fig = Figure(size=(1000, 800))
-
-        header, topography = read_volume("$(OUTPUTDIR)/ca-no-feedback.h5", :topography)
-        _, profile = read_slice("$(OUTPUTDIR)/ca-no-feedback.h5", :profile)
-
-        ax1 = Axis(fig[1, 1:2])
-        sediment_profile!(ax1, header, profile)
-        ax1.title = "without feedback"
-
-        ax1_wh1 = Axis(fig[3, 1])
-        ax1_wh2 = Axis(fig[3, 2])
-        sa, ft = wheeler_diagram!(ax1_wh1, ax1_wh2, header, profile)
-        Colorbar(fig[2, 1], sa; vertical=false, label="sediment accumulation [m/Myr]")
-        Colorbar(fig[2, 2], ft; vertical=false, ticks=1:3, label="dominant facies")
-
-        header, topography = read_volume("$(OUTPUTDIR)/ca-feedback.h5", :topography)
-        _, profile = read_slice("$(OUTPUTDIR)/ca-feedback.h5", :profile)
-
-        ax2 = Axis(fig[1, 3:4])
-        sediment_profile!(ax2, header, profile)
-        ax2.title = "with feedback"
-
-        ax2_wh1 = Axis(fig[3, 3])
-        ax2_wh2 = Axis(fig[3, 4])
-        sa, ft = wheeler_diagram!(ax2_wh1, ax2_wh2, header, profile)
-
-        Colorbar(fig[2, 3], sa; vertical=false, label="sediment accumulation [m/Myr]")
-        Colorbar(fig[2, 4], ft; vertical=false, ticks=1:3, label="dominant facies")
-
-        fig
-    end
-
-    plot()
-end
-  ╠═╡ =#
-
 # ╔═╡ f14fd9a8-4836-4f5b-b0eb-455a714a72fa
 mkpath(OUTPUTDIR)
 
@@ -341,7 +154,7 @@ md"""
 """
 
 # ╔═╡ 687e5908-03d7-44ee-a9d8-83f32cf9e447
-md"""The `run_model` command runs a model with default input and writes the output to an HDF5 file."""
+md"""The `run_model` command runs a model with default input and writes the output to an [HDF5 file](https://en.wikipedia.org/wiki/Hierarchical_Data_Format)."""
 
 # ╔═╡ 74f4674f-dbea-44ad-8d54-9861b35139cd
 # ╠═╡ disabled = true
@@ -833,9 +646,169 @@ CA feedback means to kill the facies when its producation is below a certain thr
 Herein, we will introduce CA feedback feature and see how this would influence the architecture of the carbonate platform.
 """
 
+# ╔═╡ 1bb70994-88ad-484b-aeb5-8872f5669271
+# ╠═╡ disabled = true
+#=╠═╡
+begin 
+    using CarboKitten.Boxes: Periodic
+    using CarboKitten: Production
+    
+    initial_topography_dome(x, y) =
+        min(0.0u"m", - sqrt((x - 7.5u"km")^2 + (y - 7.5u"km")^2) / 100.0 + 20.0u"m")
+
+    function main()
+        res = 100
+        steps = 5000
+        phys_scale = 15.0u"km" / res
+
+        output = Dict(
+            :topography => OutputSpec(write_interval = max(1, div(steps, 50))),
+            :profile    => OutputSpec(slice = (:, div(res, 2)+1)))
+
+        facies(feedback) = [
+            ALCAP.Facies(
+                name="euphotic",
+                activation_range=(4, 10),
+                viability_range=(1, 10),
+                production=Production.EXAMPLE[:euphotic],
+                transport_coefficient=10.0u"m/yr",
+                minimum_production=feedback ? 0.01u"m/Myr" : nothing),
+            ALCAP.Facies(
+                name="oligophotic",
+                production=BenthicProduction(
+                    maximum_growth_rate=200.0u"m/Myr",
+                    extinction_coefficient=0.1u"m^-1",
+                    saturation_intensity=60u"W/m^2"
+                ),
+                transport_coefficient=5.0u"m/yr",
+                minimum_production=feedback ? 5.0u"m/Myr" : nothing),
+            ALCAP.Facies(
+                name="pelagic",
+                active=false,
+                production=PelagicProduction(
+                    maximum_growth_rate=1.0u"1/Myr",
+                    extinction_coefficient=0.1u"m^-1",
+                    saturation_intensity=60u"W/m^2"
+                ),
+                transport_coefficient=20.0u"m/yr"
+            )
+        ]
+
+        box = CarboKitten.Box{Periodic{2}}(grid_size=(res, res),     phys_scale=phys_scale)
+
+        time_param = TimeProperties(Δt=1.0u"Myr"/steps, steps=steps)
+
+        sea_level(t) =
+            10.0u"m" * sin(2π * t / 123456.0u"yr") +
+             5.0u"m" * sin(2π * t /  80456.0u"yr")
+
+        input(feedback) = ALCAP.Input(
+            time = time_param,
+            box = box,
+            facies = facies(feedback),
+            output = output,
+
+            sea_level = sea_level,
+            initial_topography = initial_topography_dome,
+            ca_interval = 10,
+
+            insolation = 400.0u"W/m^2",
+            subsidence_rate = 30.0u"m/Myr",
+            disintegration_rate = 20.0u"m/Myr",
+            lithification_time = 100.0u"yr",
+
+            sediment_buffer_size=50,
+            depositional_resolution=0.5u"m"
+        )
+
+        run_model(Model{ALCAP}, input(false), "$(OUTPUTDIR)/ca-no-feedback.h5")
+        run_model(Model{ALCAP}, input(true), "$(OUTPUTDIR)/ca-feedback.h5")
+    end
+
+    main()
+end
+  ╠═╡ =#
+
+# ╔═╡ c01d8954-d7a6-4a3a-a0b5-07d576628418
+# ╠═╡ disabled = true
+#=╠═╡
+begin 
+    using CarboKitten.Visualization:sediment_profile!, wheeler_diagram!
+    function plot()
+
+        fig = Figure(size=(1000, 800))
+
+        header, topography = read_volume("$(OUTPUTDIR)/ca-no-feedback.h5", :topography)
+        _, profile = read_slice("$(OUTPUTDIR)/ca-no-feedback.h5", :profile)
+
+        ax1 = Axis(fig[1, 1:2])
+        sediment_profile!(ax1, header, profile)
+        ax1.title = "without feedback"
+
+        ax1_wh1 = Axis(fig[3, 1])
+        ax1_wh2 = Axis(fig[3, 2])
+        sa, ft = wheeler_diagram!(ax1_wh1, ax1_wh2, header, profile)
+        Colorbar(fig[2, 1], sa; vertical=false, label="sediment accumulation [m/Myr]")
+        Colorbar(fig[2, 2], ft; vertical=false, ticks=1:3, label="dominant facies")
+
+        header, topography = read_volume("$(OUTPUTDIR)/ca-feedback.h5", :topography)
+        _, profile = read_slice("$(OUTPUTDIR)/ca-feedback.h5", :profile)
+
+        ax2 = Axis(fig[1, 3:4])
+        sediment_profile!(ax2, header, profile)
+        ax2.title = "with feedback"
+
+        ax2_wh1 = Axis(fig[3, 3])
+        ax2_wh2 = Axis(fig[3, 4])
+        sa, ft = wheeler_diagram!(ax2_wh1, ax2_wh2, header, profile)
+
+        Colorbar(fig[2, 3], sa; vertical=false, label="sediment accumulation [m/Myr]")
+        Colorbar(fig[2, 4], ft; vertical=false, ticks=1:3, label="dominant facies")
+
+        fig
+    end
+
+    plot()
+end
+  ╠═╡ =#
+
 # ╔═╡ f0b0298e-5ee2-43fe-8a34-5e146d3577bb
 md"""
 	Can you spt out the differences? 
+"""
+
+# ╔═╡ df2af255-e9ff-43a4-a6ba-f91de2719458
+md"""
+# Appendix: installation instructions
+
+You will need an internet connection. 
+
+## Installing Julia
+
+For the installation, please go to the following webpage: https://julialang.org/downloads/. 
+
+It will automatically detect your system and guide you through the installation. 
+
+## Running the notebook
+
+1. Download or `git clone` the notebook from `https://github.com/MindTheGap-ERC/CarboKittenWorkshop` to a known path on your computer. To download from GitHub, press the green button "<> Code" and select "Download ZIP" at the bottom of the menu.
+
+2. In terminal (PowerShell in Windows) navigate to this path using `cd`
+
+3. Once you are inside of the `CarboKittenWorkshop` folder, type `julia --project=.`
+
+4. Press `]` on your keyboard to enter the package mode
+
+5. Type `instantiate` and press `Enter`. This will install Pluto. Once the installation is complete, press Backspace (`<-`) on your keyboard to exit package mode
+
+6. Type:
+
+```
+	using Pluto
+	Pluto.run(notebook="first_tutorial.jl")
+```
+
+The notebook should now open in a browser window.
 """
 
 # ╔═╡ 754f7cf0-f3a7-4cff-b20e-ed16874860c7
@@ -869,7 +842,7 @@ Unitful = "~1.28.0"
 PLUTO_MANIFEST_TOML_CONTENTS = """
 # This file is machine-generated - editing it directly is not advised
 
-julia_version = "1.12.6"
+julia_version = "1.12.5"
 manifest_format = "2.0"
 project_hash = "8ca51d8544baf6493d1184ee87d05ec719714f0b"
 
@@ -2888,19 +2861,16 @@ version = "1.13.0+0"
 """
 
 # ╔═╡ Cell order:
+# ╟─1f88106c-eea2-4473-858a-be19f70fab4c
 # ╟─0ce8de55-3304-431d-a2aa-110b46a25c9b
-# ╟─9babc2b0-9c26-11ef-3459-0d113ec3c402
-# ╟─17722d8b-baca-4f16-981f-1501c734a95f
-# ╟─22ec7e16-b8c0-414d-9700-52bf379e1051
-# ╟─d573309f-c99a-43e9-a89f-083ef4ade5d8
-# ╟─3b7fef8b-efb9-467d-b6db-f7cfa132be69
-# ╠═e3438435-643d-4a18-abe1-a4cefab65bc2
 # ╟─cf61bc3f-a20a-45b7-a885-22b70075fc42
+# ╠═e3438435-643d-4a18-abe1-a4cefab65bc2
+# ╟─abfc6cb1-8df2-4c0e-bd4d-745370c6581d
 # ╟─68fac1d8-f402-429e-90a4-25fcfa188c2e
 # ╟─002cb6d7-ee29-408f-a289-36ab913c7f85
 # ╟─545a6a8d-70d5-470a-a615-4305efa0ecd1
 # ╠═325e3d04-2ff2-4c27-91bf-265820ac6763
-# ╠═dd4cde67-4329-4135-80d7-1c8950404349
+# ╟─dd4cde67-4329-4135-80d7-1c8950404349
 # ╟─9aafba01-fc4c-4dc1-85b6-9f33a4cfc77a
 # ╠═b3b271cb-143f-44ba-a593-80b9e6c96392
 # ╠═f14fd9a8-4836-4f5b-b0eb-455a714a72fa
@@ -2973,9 +2943,10 @@ version = "1.13.0+0"
 # ╟─c85294f2-3508-48c0-b67d-d82df646ae33
 # ╟─8c9c5d8c-1fbf-49d2-b2da-a008ad5959fa
 # ╟─68da4b08-768b-43aa-a293-97363a9469de
-# ╟─1bb70994-88ad-484b-aeb5-8872f5669271
-# ╟─c01d8954-d7a6-4a3a-a0b5-07d576628418
+# ╠═1bb70994-88ad-484b-aeb5-8872f5669271
+# ╠═c01d8954-d7a6-4a3a-a0b5-07d576628418
 # ╟─f0b0298e-5ee2-43fe-8a34-5e146d3577bb
+# ╟─df2af255-e9ff-43a4-a6ba-f91de2719458
 # ╟─754f7cf0-f3a7-4cff-b20e-ed16874860c7
 # ╟─44308ced-efd2-42fd-94ab-baa178352ed9
 # ╟─ebcb24b3-1ea3-49a8-a6d8-bf1f2cee657e
